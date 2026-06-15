@@ -55,7 +55,7 @@ class _AIChatPageState extends State<AIChatPage> {
 
   final List<MessageModel> messages = [
     MessageModel(
-      text: "Welcome! How can I help you manage your finances today?",
+      text: "Hello! Ready to take control of your finances? 🚀 let's establish your baseline. What is the total budget you've allocated for this month?",
       isUser: false,
       timestamp: DateTime.now(),
     ),
