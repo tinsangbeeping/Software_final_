@@ -110,18 +110,18 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               builder: (context, budgetSnapshot) {
                 final monthlyBudgets = budgetSnapshot.data ?? [];
 
-                // If no budgets for this month, fall back to all budgets (legacy data)
-                if (monthlyBudgets.isEmpty) {
-                  return FutureBuilder<List<BudgetModel>>(
-                    future: _budgetRepository.fetchBudgets(),
-                    builder: (context, allBudgetSnapshot) {
-                      final allBudgets = allBudgetSnapshot.data ?? [];
-                      return _buildContent(context, allBudgets, allTransactions, categoryTotals, totalSpent, todaySpent, insightsService);
-                    },
-                  );
-                }
-
-                return _buildContent(context, monthlyBudgets, allTransactions, categoryTotals, totalSpent, todaySpent, insightsService);
+                // Use only this month's budgets for the dashboard.
+                // Do not fall back to legacy/all-month budget records; otherwise
+                // a deleted current-month budget can still appear as Budget Limit.
+                return _buildContent(
+                  context,
+                  monthlyBudgets,
+                  allTransactions,
+                  categoryTotals,
+                  totalSpent,
+                  todaySpent,
+                  insightsService,
+                );
               },
             );
           },

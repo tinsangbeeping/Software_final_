@@ -114,6 +114,14 @@ class _AIChatPageState extends State<AIChatPage> {
           (a) => a["type"]?.toString().toLowerCase() == type,
         );
 
+    final asksResetBudget = lower.contains('reset budget') ||
+        lower.contains('clear budget') ||
+        lower.contains('delete budget') ||
+        text.contains('重設預算') ||
+        text.contains('重置預算') ||
+        text.contains('清空預算') ||
+        text.contains('刪除預算') ||
+        text.contains('删除预算');
     final asksBudget = lower.contains('budget') ||
         text.contains('預算') ||
         text.contains('预算');
@@ -135,7 +143,9 @@ class _AIChatPageState extends State<AIChatPage> {
         text.contains('洞察') ||
         text.contains('建議');
 
-    if (asksBudget && !hasType('budget')) {
+    if (asksResetBudget && !hasType('reset')) {
+      result.add({'type': 'reset'});
+    } else if (asksBudget && !hasType('budget')) {
       try {
         String response = await geminiService.extractBudget(text);
         response = cleanAiJson(response);
@@ -146,6 +156,10 @@ class _AIChatPageState extends State<AIChatPage> {
             'type': 'budget',
             'category': data['category'] ?? 'Other',
             'limit': limit,
+            'operation': inferBudgetOperation(
+              Map<String, dynamic>.from(data),
+              originalText: text,
+            ),
           });
         }
       } catch (_) {}
@@ -176,7 +190,7 @@ class _AIChatPageState extends State<AIChatPage> {
         await recordExpenseFromAction(action, originalText: originalText);
         break;
       case "budget":
-        await recordBudgetFromAction(action);
+        await recordBudgetFromAction(action, originalText: originalText);
         break;
       case "saving_plan":
         await createSavingPlanFromAction(action, originalText);
@@ -416,7 +430,77 @@ class _AIChatPageState extends State<AIChatPage> {
     });
   }
 
-  Future<void> recordBudgetFromAction(Map<String, dynamic> data) async {
+  String inferBudgetOperation(
+    Map<String, dynamic> data, {
+    String originalText = '',
+  }) {
+    final rawOperation = (data["operation"] ?? data["mode"] ?? data["action"])
+        ?.toString()
+        .trim()
+        .toLowerCase();
+
+    if (rawOperation == 'add' ||
+        rawOperation == 'increase' ||
+        rawOperation == 'increment') {
+      return 'add';
+    }
+
+    if (rawOperation == 'reset' ||
+        rawOperation == 'delete' ||
+        rawOperation == 'clear') {
+      return 'reset';
+    }
+
+    if (rawOperation == 'set' ||
+        rawOperation == 'update' ||
+        rawOperation == 'create') {
+      return 'set';
+    }
+
+    final text = originalText.toLowerCase();
+
+    if (text.contains('reset budget') ||
+        text.contains('clear budget') ||
+        text.contains('delete budget') ||
+        originalText.contains('重設預算') ||
+        originalText.contains('重置預算') ||
+        originalText.contains('清空預算') ||
+        originalText.contains('刪除預算') ||
+        originalText.contains('删除预算')) {
+      return 'reset';
+    }
+
+    if (text.contains('increase') ||
+        text.contains('add to') ||
+        text.contains('add ') ||
+        text.contains('raise') ||
+        text.contains('more') ||
+        originalText.contains('增加') ||
+        originalText.contains('加上') ||
+        originalText.contains('多加') ||
+        originalText.contains('提高') ||
+        originalText.contains('調高') ||
+        originalText.contains('调高')) {
+      return 'add';
+    }
+
+    return 'set';
+  }
+
+  Future<void> recordBudgetFromAction(
+    Map<String, dynamic> data, {
+    String originalText = '',
+  }) async {
+    final operation = inferBudgetOperation(
+      data,
+      originalText: originalText,
+    );
+
+    if (operation == 'reset') {
+      await resetBudget();
+      return;
+    }
+
     final limit = double.tryParse(data["limit"]?.toString() ?? "") ?? 0;
 
     if (limit <= 0) {
@@ -440,26 +524,39 @@ class _AIChatPageState extends State<AIChatPage> {
       year: now.year,
     );
 
-    await budgetRepository.setBudget(budget);
+    if (operation == 'add') {
+      await budgetRepository.incrementBudget(budget);
+    } else {
+      await budgetRepository.setBudget(budget);
+    }
+
+    final isAddOperation = operation == 'add';
+    final title = isAddOperation ? "Budget Increased" : "Budget Saved";
+    final message = isAddOperation
+        ? "Added \$${budget.limit.toStringAsFixed(0)} to ${budget.category} budget."
+        : "Budget saved: ${budget.category} \$${budget.limit.toStringAsFixed(0)}.";
+    final amountFieldName = isAddOperation ? "Added" : "Limit";
+    final fields = <String, String>{
+      "Category": budget.category,
+      amountFieldName: "\$${budget.limit.toStringAsFixed(0)}",
+      "Month": "${now.month}/${now.year}",
+    };
 
     setState(() {
       messages.add(
         MessageModel(
-          text:
-              "Budget saved: ${budget.category} \$${budget.limit.toStringAsFixed(0)}.",
+          text: message,
           isUser: false,
           timestamp: DateTime.now(),
           card: _buildInfoCard(
-            icon: Icons.account_balance_wallet_rounded,
+            icon: isAddOperation
+                ? Icons.add_card_rounded
+                : Icons.account_balance_wallet_rounded,
             iconColor: const Color(0xFF00BFA6),
             bgColor: const Color(0xFFE0F7F4),
             borderColor: const Color(0xFF9ADFD6),
-            title: "Budget Saved",
-            fields: {
-              "Category": budget.category,
-              "Limit": "\$${budget.limit.toStringAsFixed(0)}",
-              "Month": "${now.month}/${now.year}",
-            },
+            title: title,
+            fields: fields,
           ),
         ),
       );
@@ -859,37 +956,29 @@ class _AIChatPageState extends State<AIChatPage> {
 
     Future<void> resetBudget() async {
       try {
-        final now = DateTime.now();
-        final deleted = await budgetRepository.deleteBudgetsForMonth(now.month, now.year);
+        final deleted = await budgetRepository.deleteAllBudgets();
 
-        if (deleted > 0) {
-          setState(() {
-            messages.add(MessageModel(
-              text: "Budget reset! Deleted $deleted budget categories for this month.",
-              isUser: false,
-              timestamp: DateTime.now(),
-              card: _buildInfoCard(
-                icon: Icons.delete_sweep_rounded,
-                iconColor: const Color(0xFFE53935),
-                bgColor: const Color(0xFFFFEBEE),
-                borderColor: const Color(0xFFEF9A9A),
-                title: "Budget Reset",
-                fields: {
-                  "Month": "${now.month}/${now.year}",
-                  "Deleted": "$deleted categories",
-                },
-              ),
-            ));
-          });
-        } else {
-          setState(() {
-            messages.add(MessageModel(
-              text: "No budget found for this month. Say \"Set budget \$2000\" to create one.",
-              isUser: false,
-              timestamp: DateTime.now(),
-            ));
-          });
-        }
+        setState(() {
+          messages.add(MessageModel(
+            text: deleted > 0
+                ? "Budget reset! Deleted $deleted budget categories."
+                : "No budget found. Say \"Set budget \$2000\" to create one.",
+            isUser: false,
+            timestamp: DateTime.now(),
+            card: deleted > 0
+                ? _buildInfoCard(
+                    icon: Icons.delete_sweep_rounded,
+                    iconColor: const Color(0xFFE53935),
+                    bgColor: const Color(0xFFFFEBEE),
+                    borderColor: const Color(0xFFEF9A9A),
+                    title: "Budget Reset",
+                    fields: {
+                      "Deleted": "$deleted categories",
+                    },
+                  )
+                : null,
+          ));
+        });
       } catch (e) {
         setState(() {
           messages.add(MessageModel(

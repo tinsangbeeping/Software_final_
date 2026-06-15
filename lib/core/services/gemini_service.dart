@@ -49,7 +49,7 @@ Convert the user's message into a list of executable actions.
 
 Supported action types:
 - expense: record a transaction expense or income
-- budget: create or update a category budget
+- budget: set a category budget to a specific amount or add an amount to an existing category budget
 - saving_plan: create or update the user's long-term saving goal plan
 - reminder: save a reminder
 - analysis: analyze spending or generate financial insight
@@ -62,7 +62,8 @@ Return ONLY valid JSON in this exact structure:
 {
   "actions": [
     {"type":"expense","transactionType":"expense","category":"Food","amount":120,"description":"Lunch","date":"2026-06-14"},
-    {"type":"budget","category":"Food","limit":3000},
+    {"type":"budget","operation":"set","category":"Food","limit":3000},
+    {"type":"budget","operation":"add","category":"Food","limit":500},
     {"type":"saving_plan","goalText":"Save 5000 in three months"},
     {"type":"analysis"},
     {"type":"chat","message":"..."}
@@ -72,8 +73,12 @@ Return ONLY valid JSON in this exact structure:
 Rules:
 - If the user asks multiple things, return multiple actions in the same order.
 - Do not collapse compound instructions into only one action.
-- Budget requests may be written as "set budget", "add budget", "新增預算", "設定預算", "調整預算", or "預算".
-- If the user asks to add/set a budget amount but does not specify a category, still create a budget action with category "Other". Do NOT turn it into chat.
+- Budget requests may be written as "set budget", "add budget", "increase budget", "reset budget", "新增預算", "設定預算", "調整預算", "增加預算", or "重設預算".
+- If the user asks to set/create a budget amount but does not specify a category, create a budget action with category "Other" and operation "set". Do NOT turn it into chat.
+- For budget actions, always include an "operation" field: "set" means replace the category budget with the amount; "add" means increase the existing category budget by the amount.
+- Use operation "add" only for phrases like "add to budget", "increase budget by", "多加", "加上", "增加", "提高", or "調高".
+- Use operation "set" for phrases like "set to", "change to", "設定成", "設為", "改成", "調成", "調低到", or "新增預算".
+- If the user asks to reset/clear/delete budgets, return a reset action instead of a budget action.
 - For budget actions, choose the amount that belongs to the budget request. If the message also includes an expense amount, do not use the expense amount as the budget limit.
 - Saving plan requests may be written as "saving plan", "saving goal", "制定計畫", "幫我做計畫", "存錢計畫", "省錢計畫", "消費目標", "我想省", or "我想存". Do NOT turn these into chat.
 - If the user asks for financial insight, spending insight, analysis, 分析, 洞察, or 建議, create an analysis action. Do NOT turn it into chat.
@@ -90,11 +95,11 @@ Rules:
 Examples:
 User: I spent 120 on lunch and set my Food budget to 3000
 Output:
-{"actions":[{"type":"expense","transactionType":"expense","category":"Food","amount":120,"description":"Lunch"},{"type":"budget","category":"Food","limit":3000}]}
+{"actions":[{"type":"expense","transactionType":"expense","category":"Food","amount":120,"description":"Lunch"},{"type":"budget","operation":"set","category":"Food","limit":3000}]}
 
 User: 午餐 450，新增預算 5000
 Output:
-{"actions":[{"type":"expense","transactionType":"expense","category":"Food","amount":450,"description":"Lunch"},{"type":"budget","category":"Other","limit":5000}]}
+{"actions":[{"type":"expense","transactionType":"expense","category":"Food","amount":450,"description":"Lunch"},{"type":"budget","operation":"set","category":"Other","limit":5000}]}
 
 User: 14號午餐 200
 Output:
@@ -102,11 +107,19 @@ Output:
 
 User: 幫我設一個三個月省 5000 元的計畫，然後把食物預算調低到 3000
 Output:
-{"actions":[{"type":"saving_plan","goalText":"三個月省 5000 元"},{"type":"budget","category":"Food","limit":3000}]}
+{"actions":[{"type":"saving_plan","goalText":"三個月省 5000 元"},{"type":"budget","operation":"set","category":"Food","limit":3000}]}
 
 User: 午餐 200，幫我制定計畫
 Output:
 {"actions":[{"type":"expense","transactionType":"expense","category":"Food","amount":200,"description":"Lunch"},{"type":"saving_plan","goalText":"午餐 200，幫我制定計畫"}]}
+
+User: 幫我把 Food 預算增加 500
+Output:
+{"actions":[{"type":"budget","operation":"add","category":"Food","limit":500}]}
+
+User: reset budget
+Output:
+{"actions":[{"type":"reset"}]}
 
 User message:
 $userMessage
@@ -187,7 +200,7 @@ $userMessage
 You are an AI financial assistant.
 Extract the budget information from the user's message.
 Return ONLY valid JSON.
-Schema: {"category":"","limit":0}
+Schema: {"category":"","limit":0,"operation":"set"}
 
 Allowed categories: Food, Transportation, Shopping, Entertainment, Other.
 Rules:
@@ -197,13 +210,19 @@ Rules:
 - If the user says shopping, clothes, online shopping, 購物, use Shopping.
 - If the user says entertainment, movie, game, 娛樂, use Entertainment.
 - If the user asks to add/set a budget but does not specify a category, use Other.
+- Always include operation: use "set" to replace the budget amount, and "add" to increase the existing budget by this amount.
+- Use operation "add" only when the user says increase/add/more/加上/增加/多加/提高/調高.
+- Use operation "set" when the user says set/change to/新增預算/設定成/改成/調成/調低到.
 - If the message also contains a transaction amount, choose the amount that belongs to the budget request, not the transaction amount.
 
 Examples:
 User: Set my Food budget to 3000
-Output: {"category":"Food","limit":3000}
+Output: {"category":"Food","limit":3000,"operation":"set"}
 User: 午餐 450，新增預算 5000
-Output: {"category":"Other","limit":5000}
+Output: {"category":"Other","limit":5000,"operation":"set"}
+
+User: 幫我把 Food 預算增加 500
+Output: {"category":"Food","limit":500,"operation":"add"}
 
 User message:
 $userMessage

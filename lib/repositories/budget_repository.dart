@@ -43,6 +43,36 @@ class BudgetRepository {
     await saveBudget(budget, userId);
   }
 
+  Future<void> incrementBudget(
+    BudgetModel budget, [
+    String? userId,
+  ]) async {
+    final query = await _collection(userId)
+        .where('category', isEqualTo: budget.category)
+        .where('month', isEqualTo: budget.month)
+        .where('year', isEqualTo: budget.year)
+        .limit(1)
+        .get();
+
+    if (query.docs.isNotEmpty) {
+      final existing = BudgetModel.fromMap(
+        query.docs.first.data(),
+        docId: query.docs.first.id,
+      );
+      await query.docs.first.reference.update(
+        BudgetModel(
+          id: existing.id,
+          category: existing.category,
+          limit: existing.limit + budget.limit,
+          month: existing.month,
+          year: existing.year,
+        ).toMap(),
+      );
+    } else {
+      await _collection(userId).add(budget.toMap());
+    }
+  }
+
   Future<void> addBudget(
     BudgetModel budget, [
     String? userId,
