@@ -16,7 +16,6 @@ import '../../widgets/analytics/date_range_selector.dart';
 import '../../widgets/analytics/overspending_warning_card.dart';
 import 'ai_financial_insight_page.dart';
 import 'saving_goal_plan_page.dart';
-import '../transaction/transaction_history_page.dart';
 
 class AnalyticsPage extends StatefulWidget {
   const AnalyticsPage({super.key});
@@ -215,24 +214,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           if (budgetLimit > 0 && totalSpent / budgetLimit >= 0.8)
             const SizedBox(height: 16),
 
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _ActionCard(
-              icon: Icons.list_alt_rounded,
-              title: "View Records",
-              subtitle: "View and delete transactions or budgets.",
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const TransactionHistoryPage(),
-                  ),
-                );
-              },
-            ),
-          ),
-
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),

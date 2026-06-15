@@ -97,6 +97,10 @@ class AppLocalizations {
       'traditional_chinese': 'Traditional Chinese',
       'language_changed': 'Language changed to English',
       'language_changed_zh': '語言已切換為繁體中文',
+      'logout': 'Logout',
+      'logout_confirm_title': 'Log out?',
+      'logout_confirm_message': 'You will need to sign in again to access your data.',
+      'logout_success': 'Logged out',
     },
     'zh': {
       'app_name': 'FinWise',
@@ -183,6 +187,10 @@ class AppLocalizations {
       'traditional_chinese': '繁體中文',
       'language_changed': 'Language changed to English',
       'language_changed_zh': '語言已切換為繁體中文',
+      'logout': '登出',
+      'logout_confirm_title': '確定要登出嗎？',
+      'logout_confirm_message': '登出後需要重新登入才能使用您的資料。',
+      'logout_success': '已登出',
     },
   };
 
@@ -272,4 +280,8 @@ class AppLocalizations {
   String get traditionalChinese => tr('traditional_chinese');
   String get languageChanged => tr('language_changed');
   String get languageChangedZh => tr('language_changed_zh');
+  String get logout => tr('logout');
+  String get logoutConfirmTitle => tr('logout_confirm_title');
+  String get logoutConfirmMessage => tr('logout_confirm_message');
+  String get logoutSuccess => tr('logout_success');
 }

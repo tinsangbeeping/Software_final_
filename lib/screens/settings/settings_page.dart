@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../../widgets/settings/preference_tile.dart';
 import '../../widgets/settings/section_card.dart';
-import '../../widgets/settings/debug_section.dart';
 import '../../core/localization/app_localizations.dart';
-import '../../core/providers/localization_provider.dart';
-import 'language_picker_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import '../auth/login_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -33,38 +32,12 @@ class SettingsPage extends StatelessWidget {
               const SizedBox(height: 30),
 
               SectionCard(
-                child: Column(
-                  children: [
-                    PreferenceTile(
-                      icon: Icons.person,
-                      title: loc.profile,
-                      onTap: () => _showComingSoon(context, loc.profile),
-                    ),
-
-                    const Divider(),
-
-                    Consumer<LocalizationProvider>(
-                      builder: (context, localeProvider, _) {
-                        return PreferenceTile(
-                          icon: Icons.language,
-                          title: loc.languageSetting,
-                          subtitle: localeProvider.isEnglish ? 'English' : '繁體中文',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const LanguagePickerPage()),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ],
+                child: PreferenceTile(
+                  icon: Icons.logout,
+                  title: loc.logout,
+                  onTap: () => _confirmLogout(context),
                 ),
               ),
-
-              const SizedBox(height: 24),
-
-              const DebugSection(),
             ],
           ),
         ),
@@ -72,15 +45,55 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  void _showComingSoon(BuildContext context, String feature) {
+  Future<void> _confirmLogout(BuildContext context) async {
     final loc = AppLocalizations.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature ${loc.comingSoon}'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: const Color(0xFF00BFA6),
-        duration: const Duration(seconds: 2),
-      ),
+
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(loc.logoutConfirmTitle),
+          content: Text(loc.logoutConfirmMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(loc.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(
+                loc.logout,
+                style: const TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
     );
+
+    if (shouldLogout != true) return;
+
+    try {
+      await FirebaseAuth.instance.signOut();
+
+      if (!context.mounted) return;
+
+      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const LoginPage(),
+        ),
+        (route) => false,
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to logout: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }
