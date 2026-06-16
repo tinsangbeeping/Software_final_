@@ -10,12 +10,14 @@ class ChartSection extends StatelessWidget {
   final Map<String, double> categoryTotals;
   final List<TransactionModel> transactions;
   final List<CategoryPacing> pacingData;
+  final String transactionRangeLabel;
 
   const ChartSection({
     super.key,
     required this.categoryTotals,
     required this.transactions,
     this.pacingData = const [],
+    this.transactionRangeLabel = 'Transactions',
   });
 
   @override
@@ -56,7 +58,10 @@ class ChartSection extends StatelessWidget {
                 children: [
                   BudgetChart(pacingData: pacingData),
                   CategoryChart(categoryTotals: categoryTotals),
-                  TransactionListTab(transactions: transactions),
+                  TransactionListTab(
+                    transactions: transactions,
+                    rangeLabel: transactionRangeLabel,
+                  ),
                 ],
               ),
             ),

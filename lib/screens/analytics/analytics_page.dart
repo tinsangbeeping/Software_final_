@@ -64,6 +64,14 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     }
   }
 
+
+  String _getSelectedRangeLabel() {
+    if (_selectedPreset == 'Custom' && _customRange != null) {
+      return '${_customRange!.start.month}/${_customRange!.start.day} - ${_customRange!.end.month}/${_customRange!.end.day}';
+    }
+
+    return _selectedPreset;
+  }
   @override
   Widget build(BuildContext context) {
     final repository = TransactionRepository();
@@ -285,6 +293,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               categoryTotals: categoryTotals,
               transactions: allTransactions,
               pacingData: pacingData,
+              transactionRangeLabel: _getSelectedRangeLabel(),
             ),
           ),
         ],
@@ -307,7 +316,6 @@ class _ActionCard extends StatelessWidget {
     required this.subtitle,
     required this.onTap,
   });
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
