@@ -5,8 +5,13 @@ import '../../repositories/transaction_repository.dart';
 
 class TransactionListTab extends StatefulWidget {
   final List<TransactionModel> transactions;
+  final String rangeLabel;
 
-  const TransactionListTab({super.key, required this.transactions});
+  const TransactionListTab({
+    super.key,
+    required this.transactions,
+    required this.rangeLabel,
+  });
 
   @override
   State<TransactionListTab> createState() => _TransactionListTabState();
@@ -17,14 +22,11 @@ class _TransactionListTabState extends State<TransactionListTab> {
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final weekAgo = now.subtract(const Duration(days: 7));
-    final recent = widget.transactions
-        .where((t) => t.createdAt.isAfter(weekAgo))
-        .toList();
-    final total = recent.fold<double>(0, (sum, t) => sum + t.amount);
+    final displayedTransactions = [...widget.transactions]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final total = displayedTransactions.fold<double>(0, (sum, t) => sum + t.amount);
 
-    if (recent.isEmpty) {
+    if (displayedTransactions.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -32,7 +34,7 @@ class _TransactionListTabState extends State<TransactionListTab> {
             Icon(Icons.receipt_long_outlined,
                 size: 48, color: Colors.grey[300]),
             const SizedBox(height: 12),
-            Text("No recent transactions",
+            Text("No transactions in this range",
                 style: TextStyle(color: Colors.grey[500])),
           ],
         ),
@@ -45,7 +47,7 @@ class _TransactionListTabState extends State<TransactionListTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Last 7 Days summary (clickable) ──
+            // ── Selected range summary (clickable) ──
             GestureDetector(
             onTap: () => setState(() => _isExpanded = !_isExpanded),
             child: Container(
@@ -69,12 +71,12 @@ class _TransactionListTabState extends State<TransactionListTab> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text("Last 7 Days",
-                            style: TextStyle(
+                        Text(widget.rangeLabel,
+                            style: const TextStyle(
                                 fontWeight: FontWeight.bold, fontSize: 15)),
                         const SizedBox(height: 2),
                         Text(
-                          "${recent.length} transaction${recent.length > 1 ? 's' : ''} · \$${total.toStringAsFixed(2)}",
+                          "${displayedTransactions.length} transaction${displayedTransactions.length > 1 ? 's' : ''} · \$${total.toStringAsFixed(2)}",
                           style:
                               TextStyle(color: Colors.grey[600], fontSize: 12),
                         ),
@@ -108,12 +110,12 @@ class _TransactionListTabState extends State<TransactionListTab> {
               padding: const EdgeInsets.only(top: 14),
               child: Column(
                 children: [
-                  for (final t in recent) ...[
+                  for (final t in displayedTransactions) ...[
                     _TransactionRow(
                       transaction: t,
                       onDelete: () => _deleteTransaction(t),
                     ),
-                    if (t != recent.last)
+                    if (t != displayedTransactions.last)
                       Divider(height: 1, color: Colors.grey[200]),
                   ],
                 ],
